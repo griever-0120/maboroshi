@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>円描画マップ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #16213e;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      flex-wrap: wrap;
+      z-index: 1000;
+    }
+
+    header h1 { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"] {
+      background: #0f3460;
+      border: 1px solid #2a5298;
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 160px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: #4285F4; }
+    input[type="text"]::placeholder { color: #667; }
+
+    button {
+      background: #4285F4;
+      color: #fff;
+      border: none;
+      padding: 7px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    button:hover { background: #3367d6; }
+
+    .btn-clear {
+      background: #555;
+    }
+    .btn-clear:hover { background: #777; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      font-size: 12px;
+      align-items: center;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      border: 2px solid;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .dot-blue { border-color: #4499ff; background: rgba(68,153,255,0.2); }
+    .dot-red  { border-color: #ff5555; background: rgba(255,85,85,0.15); }
+
+    #map { flex: 1; width: 100%; }
+
+    #status {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #status.show { opacity: 1; }
+
+    .error { color: #ff7b7b; font-size: 13px; display: none; }
+    .error.show { display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🗺 円描画マップ</h1>
+  <div class="input-group">
+    <input type="text" id="lat" placeholder="緯度 例: 35.6894" />
+    <input type="text" id="lng" placeholder="経度 例: 139.6917" />
+    <button onclick="draw()">円を描く</button>
+    <button class="btn-clear" onclick="clearCircles()">クリア</button>
+    <span class="error" id="err">⚠ 有効な緯度・経度を入力してください</span>
+  </div>
+  <div class="legend">
+    <span><span class="legend-dot dot-blue"></span>750m</span>
+    <span><span class="legend-dot dot-red"></span>3.8km</span>
+  </div>
+</header>
+
+<div id="map"></div>
+<div id="status"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var map = L.map('map', { zoomControl: true }).setView([35.6894, 139.6917], 13);
+
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  var circles = [];
+  var marker = null;
+
+  function showStatus(msg) {
+    var el = document.getElementById('status');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function() { el.classList.remove('show'); }, 2500);
+  }
+
+  function draw() {
+    var latVal = document.getElementById('lat').value.trim();
+    var lngVal = document.getElementById('lng').value.trim();
+    var err = document.getElementById('err');
+
+    var lat = parseFloat(latVal);
+    var lng = parseFloat(lngVal);
+
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      err.classList.add('show');
+      return;
+    }
+    err.classList.remove('show');
+
+    clearCircles();
+
+    var c1 = L.circle([lat, lng], {
+      radius: 750,
+      color: '#4499ff',
+      weight: 2.5,
+      opacity: 0.9,
+      fillColor: '#4499ff',
+      fillOpacity: 0.07
+    }).addTo(map);
+
+    var c2 = L.circle([lat, lng], {
+      radius: 3800,
+      color: '#ff5555',
+      weight: 2.5,
+      opacity: 0.9,
+      fillColor: '#ff5555',
+      fillOpacity: 0.05
+    }).addTo(map);
+
+    marker = L.marker([lat, lng])
+      .bindPopup('<b>' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</b><br>中心点')
+      .addTo(map)
+      .openPopup();
+
+    circles = [c1, c2];
+
+    // 両方の円が収まるようにズーム
+    map.fitBounds(c2.getBounds(), { padding: [30, 30] });
+    showStatus('中心: ' + lat.toFixed(6) + ', ' + lng.toFixed(6));
+  }
+
+  function clearCircles() {
+    circles.forEach(function(c) { map.removeLayer(c); });
+    circles = [];
+    if (marker) { map.removeLayer(marker); marker = null; }
+  }
+
+  // Enter キーで描画
+  document.getElementById('lat').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('lng').focus(); });
+  document.getElementById('lng').addEventListener('keydown', function(e) { if (e.key === 'Enter') draw(); });
+
+  // クリップボードからの貼り付け: "lat, lng" 形式を自動分割
+  document.getElementById('lat').addEventListener('paste', function(e) {
+    var text = (e.clipboardData || window.clipboardData).getData('text').trim();
+    var parts = text.split(/[,\s]+/);
+    if (parts.length >= 2) {
+      e.preventDefault();
+      document.getElementById('lat').value = parts[0];
+      document.getElementById('lng').value = parts[1];
+      draw();
+    }
+  });
+</script>
+</body>
+</html>
