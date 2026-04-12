@@ -62,25 +62,19 @@
     .btn-clear { background: #555; }
     .btn-clear:hover { background: #777; }
 
-    .btn-csv {
-      background: #2d7a4f;
-      padding: 7px 18px;
+    select#dateFilter {
+      background: #0f3460;
+      border: 1px solid #2a5298;
+      color: #fff;
+      padding: 7px 12px;
       border-radius: 6px;
       font-size: 14px;
-      font-weight: 600;
+      outline: none;
       cursor: pointer;
-      white-space: nowrap;
-      color: #fff;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.2s;
+      transition: border-color 0.2s;
     }
-    .btn-csv:hover { background: #246040; }
-    .btn-csv input[type="file"] { display: none; }
-
-    .btn-csv-clear { background: #6b3a2a; }
-    .btn-csv-clear:hover { background: #8b4a36; }
+    select#dateFilter:focus { border-color: #4285F4; }
+    select#dateFilter option { background: #0f3460; }
 
     .divider { width: 1px; height: 24px; background: #334; flex-shrink: 0; }
 
@@ -164,10 +158,7 @@
     <button class="btn-clear" onclick="clearCircles()">クリア</button>
     <span class="error" id="err">⚠ 有効な緯度・経度を入力してください</span>
     <div class="divider"></div>
-    <button class="btn-csv" onclick="fetchCSV()">
-      <i class="fa-solid fa-file-csv"></i> CSV再読込
-    </button>
-    <button class="btn-csv-clear" onclick="clearSpirits()">精霊クリア</button>
+    <select id="dateFilter" onchange="onDateChange()"></select>
   </div>
   <div class="legend">
     <span><span class="legend-dot dot-blue"></span>750m</span>
@@ -239,10 +230,11 @@
   }
 
   // ---- 精霊プロット ----
-  function parseAndPlot(text) {
+  var allSpiritData = [];
+
+  function parseCSV(text) {
     var lines = text.split(/\r?\n/);
-    clearSpirits();
-    var count = 0;
+    var data = [];
     for (var i = 1; i < lines.length; i++) {
       var cols = lines[i].split(',');
       if (cols.length < 4) continue;
@@ -251,8 +243,16 @@
       var lat  = parseFloat(cols[2]);
       var lng  = parseFloat(cols[3]);
       if (isNaN(lat) || isNaN(lng)) continue;
-      var cfg = SPIRIT_CONFIG[name];
-      if (!cfg) continue;
+      if (!SPIRIT_CONFIG[name]) continue;
+      data.push({ date: date, name: name, lat: lat, lng: lng });
+    }
+    return data;
+  }
+
+  function plotData(data) {
+    clearSpirits();
+    data.forEach(function(row) {
+      var cfg = SPIRIT_CONFIG[row.name];
       var icon = L.divIcon({
         className: '',
         html: '<div class="spirit-marker ' + cfg.cls + '"><i class="fa-solid ' + cfg.icon + '"></i></div>',
@@ -260,13 +260,64 @@
         iconAnchor: [14, 14],
         popupAnchor: [0, -16]
       });
-      var m = L.marker([lat, lng], { icon: icon })
-        .bindPopup('<b>' + name + '</b><br>' + date + '<br>' + lat.toFixed(6) + ', ' + lng.toFixed(6))
+      var m = L.marker([row.lat, row.lng], { icon: icon })
+        .bindPopup('<b>' + row.name + '</b><br>' + row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6))
         .addTo(map);
+      (function(lat, lng) {
+        m.on('click', function() {
+          document.getElementById('lat').value = lat;
+          document.getElementById('lng').value = lng;
+          draw();
+        });
+      })(row.lat, row.lng);
       spiritMarkers.push(m);
-      count++;
+    });
+    showStatus(spiritMarkers.length + ' 件の精霊をプロットしました');
+  }
+
+  function buildDateSelector(data) {
+    var dates = [];
+    data.forEach(function(row) { if (dates.indexOf(row.date) === -1) dates.push(row.date); });
+    dates.sort(function(a, b) { return b.localeCompare(a); }); // 降順
+
+    var sel = document.getElementById('dateFilter');
+    sel.innerHTML = '';
+    var optAll = document.createElement('option');
+    optAll.value = 'all';
+    optAll.textContent = 'all';
+    sel.appendChild(optAll);
+    dates.forEach(function(d) {
+      var opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      sel.appendChild(opt);
+    });
+
+    // 今日の日付を初期選択（なければ先頭=all）
+    var today = new Date();
+    var mm = String(today.getMonth() + 1).padStart(2, '0');
+    var dd = String(today.getDate()).padStart(2, '0');
+    var todayStr = today.getFullYear() + '/' + mm + '/' + dd;
+    // CSVの日付フォーマットに合わせて複数パターン試す
+    var found = dates.some(function(d) { return d === todayStr; });
+    if (found) {
+      sel.value = todayStr;
+    } else {
+      // ハイフン区切りでも試す
+      var todayHyphen = today.getFullYear() + '-' + mm + '-' + dd;
+      found = dates.some(function(d) { return d === todayHyphen; });
+      sel.value = found ? todayHyphen : 'all';
     }
-    showStatus(count + ' 件の精霊をプロットしました');
+  }
+
+  function onDateChange() {
+    var sel = document.getElementById('dateFilter');
+    var val = sel.value;
+    if (val === 'all') {
+      plotData(allSpiritData);
+    } else {
+      plotData(allSpiritData.filter(function(row) { return row.date === val; }));
+    }
   }
 
   function fetchCSV() {
@@ -275,7 +326,11 @@
         if (!res.ok) throw new Error('spirits.csv が見つかりません');
         return res.text();
       })
-      .then(function(text) { parseAndPlot(text); })
+      .then(function(text) {
+        allSpiritData = parseCSV(text);
+        buildDateSelector(allSpiritData);
+        onDateChange();
+      })
       .catch(function(err) { showStatus('⚠ ' + err.message); });
   }
 
