@@ -131,6 +131,22 @@
     .error { color: #ff7b7b; font-size: 13px; display: none; }
     .error.show { display: block; }
 
+    /* GeoHex トグル */
+    .hex-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .hex-toggle input[type="checkbox"] { cursor: pointer; accent-color: #4285F4; }
+    .hex-swatch { display: inline-block; width: 14px; height: 10px; border-radius: 2px; border: 2px solid; }
+    .hs3 { border-color: #aa77ff; background: rgba(170,119,255,0.15); }
+    .hs4 { border-color: #ffaa00; background: rgba(255,170,0,0.12); }
+    .hs5 { border-color: #44ffaa; background: rgba(68,255,170,0.12); }
+
     /* 精霊マーカー */
     .spirit-marker {
       width: 28px; height: 28px;
@@ -168,6 +184,10 @@
     <span class="legend-spirit"><span class="si si-water"><i class="fa-solid fa-droplet"></i></span>水</span>
     <span class="legend-spirit"><span class="si si-wind"><i class="fa-solid fa-wind"></i></span>風</span>
     <span class="legend-spirit"><span class="si si-earth"><i class="fa-solid fa-mountain"></i></span>大地</span>
+    <div class="divider"></div>
+    <label class="hex-toggle"><input type="checkbox" id="hex3"><span class="hex-swatch hs3"></span>Lv3</label>
+    <label class="hex-toggle"><input type="checkbox" id="hex4"><span class="hex-swatch hs4"></span>Lv4</label>
+    <label class="hex-toggle"><input type="checkbox" id="hex5"><span class="hex-swatch hs5"></span>Lv5</label>
   </div>
 </header>
 
@@ -175,6 +195,84 @@
 <div id="status"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* GeoHex v3 - derived from https://github.com/leon-win/geohex (MIT) */
+var GeoHex = (function () {
+  var BASE = 20037508.34;
+  var K    = Math.tan(Math.PI / 6);  // tan(30°)
+  var DEG  = Math.tan(Math.PI / 3);  // tan(60°)
+
+  function calcHexSize(level) { return BASE / Math.pow(3, level + 3); }
+
+  function loc2xy(lon, lat) {
+    return {
+      x: lon * BASE / 180,
+      y: Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180) * BASE / 180
+    };
+  }
+
+  function xy2loc(x, y) {
+    return {
+      lon: x / BASE * 180,
+      lat: 180 / Math.PI * (Math.atan(Math.exp(y / BASE * Math.PI)) * 2 - Math.PI / 2)
+    };
+  }
+
+  function adjustXY(x, y, level) {
+    var maxSteps = Math.pow(3, level + 2);
+    var steps = Math.abs(x - y);
+    if (steps === maxSteps && x > y) return { x: y, y: x };
+    if (steps > maxSteps) {
+      var dif = steps - maxSteps;
+      var difX = Math.floor(dif / 2);
+      var difY = dif - difX;
+      if (x > y) return { x: y + difY + difX, y: x - difX - difY };
+      if (y > x) return { x: y - difY - difX, y: x + difX + difY };
+    }
+    return { x: x, y: y };
+  }
+
+  function getXYByLocation(lat, lon, level) {
+    var size  = calcHexSize(level);
+    var unitX = 6 * size, unitY = 6 * size * K;
+    var m     = loc2xy(lon, lat);
+    var posX  = (m.x + m.y / K) / unitX;
+    var posY  = (m.y - K * m.x)  / unitY;
+    var X0 = Math.floor(posX), Y0 = Math.floor(posY);
+    var XQ = posX - X0,        YQ = posY - Y0;
+    var x  = Math.round(posX), y  = Math.round(posY);
+    if (YQ > -XQ + 1) {
+      if (YQ < 2 * XQ && YQ > 0.5 * XQ) { x = X0 + 1; y = Y0 + 1; }
+    } else if (YQ < -XQ + 1) {
+      if (YQ > 2 * XQ - 1 && YQ < 0.5 * XQ + 0.5) { x = X0; y = Y0; }
+    }
+    return adjustXY(x, y, level);
+  }
+
+  function getCellCenter(x, y, level) {
+    var size  = calcHexSize(level);
+    var unitX = 6 * size, unitY = 6 * size * K;
+    var latM  = (K * x * unitX + y * unitY) / 2;
+    var lonM  = (latM - y * unitY) / K;
+    return xy2loc(lonM, latM);
+  }
+
+  function getHexCoords(lat, lon, level) {
+    var size = calcHexSize(level);
+    var m    = loc2xy(lon, lat);
+    var TOP    = xy2loc(m.x, m.y + DEG * size).lat;
+    var BOTTOM = xy2loc(m.x, m.y - DEG * size).lat;
+    var LEFT   = xy2loc(m.x - 2 * size, m.y).lon;
+    var RIGHT  = xy2loc(m.x + 2 * size, m.y).lon;
+    var CL     = xy2loc(m.x - 1 * size, m.y).lon;
+    var CR     = xy2loc(m.x + 1 * size, m.y).lon;
+    return [[lat, LEFT],[TOP, CL],[TOP, CR],[lat, RIGHT],[BOTTOM, CR],[BOTTOM, CL]];
+  }
+
+  return { BASE: BASE, K: K, calcHexSize: calcHexSize, loc2xy: loc2xy, xy2loc: xy2loc,
+           getXYByLocation: getXYByLocation, getCellCenter: getCellCenter, getHexCoords: getHexCoords };
+})();
+</script>
 <script>
   var map = L.map('map', { zoomControl: true }).setView([33.5897, 130.3993], 13);
 
@@ -215,9 +313,8 @@
     clearCircles();
     var c1 = L.circle([lat, lng], { radius: 750,  color: '#4499ff', weight: 2.5, opacity: 0.9, fillColor: '#4499ff', fillOpacity: 0.07 }).addTo(map);
     var c2 = L.circle([lat, lng], { radius: 3800, color: '#ff5555', weight: 2.5, opacity: 0.9, fillColor: '#ff5555', fillOpacity: 0.05 }).addTo(map);
-    centerMarker = L.marker([lat, lng])
-      .bindPopup('<b>' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</b><br>中心点')
-      .addTo(map).openPopup();
+    centerMarker = L.marker([lat, lng], { interactive: false })
+      .addTo(map);
     circles = [c1, c2];
     map.fitBounds(c2.getBounds(), { padding: [30, 30] });
     showStatus('中心: ' + lat.toFixed(6) + ', ' + lng.toFixed(6));
@@ -339,6 +436,72 @@
     spiritMarkers.forEach(function(m) { map.removeLayer(m); });
     spiritMarkers = [];
   }
+
+  // ---- GeoHex グリッド ----
+  var HEX_STYLES = {
+    3: { color: '#aa77ff', weight: 1.2, opacity: 0.7, fillColor: '#aa77ff', fillOpacity: 0.06 },
+    4: { color: '#ffaa00', weight: 1.0, opacity: 0.7, fillColor: '#ffaa00', fillOpacity: 0.05 },
+    5: { color: '#44ffaa', weight: 0.8, opacity: 0.7, fillColor: '#44ffaa', fillOpacity: 0.05 }
+  };
+  var hexLayers = {
+    3: L.layerGroup(),
+    4: L.layerGroup(),
+    5: L.layerGroup()
+  };
+
+  function renderHexLevel(level) {
+    hexLayers[level].clearLayers();
+    var size  = GeoHex.calcHexSize(level);
+    var unitX = 6 * size;
+    var unitY = 6 * size * GeoHex.K;
+    var stepX = unitX / 2;
+    var stepY = unitY / 2;
+
+    var bounds = map.getBounds();
+    var swM = GeoHex.loc2xy(bounds.getWest(),  bounds.getSouth());
+    var neM = GeoHex.loc2xy(bounds.getEast(),  bounds.getNorth());
+
+    var seen = {}, count = 0, MAX = 400;
+
+    outer:
+    for (var mx = swM.x - unitX; mx <= neM.x + unitX; mx += stepX) {
+      for (var my = swM.y - unitY; my <= neM.y + unitY; my += stepY) {
+        var loc = GeoHex.xy2loc(mx, my);
+        var xy  = GeoHex.getXYByLocation(loc.lat, loc.lon, level);
+        var key = xy.x + '_' + xy.y;
+        if (seen[key]) continue;
+        seen[key] = true;
+        if (++count > MAX) break outer;
+        var ctr    = GeoHex.getCellCenter(xy.x, xy.y, level);
+        var coords = GeoHex.getHexCoords(ctr.lat, ctr.lon, level);
+        L.polygon(coords, HEX_STYLES[level]).addTo(hexLayers[level]);
+      }
+    }
+  }
+
+  function updateHexGrid() {
+    [3, 4, 5].forEach(function(lv) {
+      if (document.getElementById('hex' + lv).checked) renderHexLevel(lv);
+    });
+  }
+
+  var hexDebounce = null;
+  map.on('moveend zoomend', function() {
+    clearTimeout(hexDebounce);
+    hexDebounce = setTimeout(updateHexGrid, 150);
+  });
+
+  [3, 4, 5].forEach(function(lv) {
+    document.getElementById('hex' + lv).addEventListener('change', function() {
+      if (this.checked) {
+        hexLayers[lv].addTo(map);
+        renderHexLevel(lv);
+      } else {
+        hexLayers[lv].clearLayers();
+        map.removeLayer(hexLayers[lv]);
+      }
+    });
+  });
 
   // ページ読込時に自動でCSV取得
   fetchCSV();
