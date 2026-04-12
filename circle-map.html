@@ -263,13 +263,14 @@
       var m = L.marker([row.lat, row.lng], { icon: icon })
         .bindPopup('<b>' + row.name + '</b><br>' + row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6))
         .addTo(map);
-      (function(lat, lng) {
-        m.on('click', function() {
+      (function(lat, lng, marker) {
+        marker.on('click', function() {
           document.getElementById('lat').value = lat;
           document.getElementById('lng').value = lng;
           draw();
+          marker.openPopup();
         });
-      })(row.lat, row.lng);
+      })(row.lat, row.lng, m);
       spiritMarkers.push(m);
     });
     showStatus(spiritMarkers.length + ' 件の精霊をプロットしました');
