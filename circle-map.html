@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>円描画マップ</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; }
@@ -58,27 +59,60 @@
     }
     button:hover { background: #3367d6; }
 
-    .btn-clear {
-      background: #555;
-    }
+    .btn-clear { background: #555; }
     .btn-clear:hover { background: #777; }
+
+    .btn-csv {
+      background: #2d7a4f;
+      padding: 7px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .btn-csv:hover { background: #246040; }
+    .btn-csv input[type="file"] { display: none; }
+
+    .btn-csv-clear { background: #6b3a2a; }
+    .btn-csv-clear:hover { background: #8b4a36; }
+
+    .divider { width: 1px; height: 24px; background: #334; flex-shrink: 0; }
 
     .legend {
       display: flex;
-      gap: 14px;
+      gap: 10px;
       font-size: 12px;
       align-items: center;
+      flex-wrap: wrap;
     }
     .legend-dot {
       display: inline-block;
       width: 12px; height: 12px;
       border-radius: 50%;
       border: 2px solid;
-      margin-right: 4px;
+      margin-right: 3px;
       vertical-align: middle;
     }
-    .dot-blue { border-color: #4499ff; background: rgba(68,153,255,0.2); }
-    .dot-red  { border-color: #ff5555; background: rgba(255,85,85,0.15); }
+    .dot-blue  { border-color: #4499ff; background: rgba(68,153,255,0.2); }
+    .dot-red   { border-color: #ff5555; background: rgba(255,85,85,0.15); }
+
+    .legend-spirit {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+    }
+    .si { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; }
+    .si-fire  { background: #e05020; }
+    .si-water { background: #1a7acc; }
+    .si-wind  { background: #20a090; }
+    .si-earth { background: #7a6020; }
 
     #map { flex: 1; width: 100%; }
 
@@ -102,6 +136,21 @@
 
     .error { color: #ff7b7b; font-size: 13px; display: none; }
     .error.show { display: block; }
+
+    /* 精霊マーカー */
+    .spirit-marker {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.6);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .sm-fire  { background: #e05020; }
+    .sm-water { background: #1a7acc; }
+    .sm-wind  { background: #20a090; }
+    .sm-earth { background: #7a6020; }
   </style>
 </head>
 <body>
@@ -109,15 +158,26 @@
 <header>
   <h1>🗺 円描画マップ</h1>
   <div class="input-group">
-    <input type="text" id="lat" placeholder="緯度 例: 35.6894" />
-    <input type="text" id="lng" placeholder="経度 例: 139.6917" />
+    <input type="text" id="lat" placeholder="緯度 例: 33.5897" />
+    <input type="text" id="lng" placeholder="経度 例: 130.3993" />
     <button onclick="draw()">円を描く</button>
     <button class="btn-clear" onclick="clearCircles()">クリア</button>
     <span class="error" id="err">⚠ 有効な緯度・経度を入力してください</span>
+    <div class="divider"></div>
+    <label class="btn-csv">
+      <i class="fa-solid fa-file-csv"></i> CSV読込
+      <input type="file" accept=".csv" onchange="loadCSV(this)">
+    </label>
+    <button class="btn-csv-clear" onclick="clearSpirits()">精霊クリア</button>
   </div>
   <div class="legend">
     <span><span class="legend-dot dot-blue"></span>750m</span>
     <span><span class="legend-dot dot-red"></span>3.8km</span>
+    <div class="divider"></div>
+    <span class="legend-spirit"><span class="si si-fire"><i class="fa-solid fa-fire"></i></span>炎</span>
+    <span class="legend-spirit"><span class="si si-water"><i class="fa-solid fa-droplet"></i></span>水</span>
+    <span class="legend-spirit"><span class="si si-wind"><i class="fa-solid fa-wind"></i></span>風</span>
+    <span class="legend-spirit"><span class="si si-earth"><i class="fa-solid fa-mountain"></i></span>大地</span>
   </div>
 </header>
 
@@ -126,7 +186,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  var map = L.map('map', { zoomControl: true }).setView([35.6894, 139.6917], 13);
+  var map = L.map('map', { zoomControl: true }).setView([33.5897, 130.3993], 13);
 
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a>',
@@ -134,7 +194,15 @@
   }).addTo(map);
 
   var circles = [];
-  var marker = null;
+  var centerMarker = null;
+  var spiritMarkers = [];
+
+  var SPIRIT_CONFIG = {
+    '炎の精霊': { cls: 'sm-fire',  icon: 'fa-fire'     },
+    '水の精霊': { cls: 'sm-water', icon: 'fa-droplet'  },
+    '風の精霊': { cls: 'sm-wind',  icon: 'fa-wind'     },
+    '大地の精霊':{ cls: 'sm-earth', icon: 'fa-mountain' },
+  };
 
   function showStatus(msg) {
     var el = document.getElementById('status');
@@ -143,48 +211,24 @@
     setTimeout(function() { el.classList.remove('show'); }, 2500);
   }
 
+  // ---- 円描画 ----
   function draw() {
     var latVal = document.getElementById('lat').value.trim();
     var lngVal = document.getElementById('lng').value.trim();
     var err = document.getElementById('err');
-
     var lat = parseFloat(latVal);
     var lng = parseFloat(lngVal);
-
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      err.classList.add('show');
-      return;
+      err.classList.add('show'); return;
     }
     err.classList.remove('show');
-
     clearCircles();
-
-    var c1 = L.circle([lat, lng], {
-      radius: 750,
-      color: '#4499ff',
-      weight: 2.5,
-      opacity: 0.9,
-      fillColor: '#4499ff',
-      fillOpacity: 0.07
-    }).addTo(map);
-
-    var c2 = L.circle([lat, lng], {
-      radius: 3800,
-      color: '#ff5555',
-      weight: 2.5,
-      opacity: 0.9,
-      fillColor: '#ff5555',
-      fillOpacity: 0.05
-    }).addTo(map);
-
-    marker = L.marker([lat, lng])
+    var c1 = L.circle([lat, lng], { radius: 750,  color: '#4499ff', weight: 2.5, opacity: 0.9, fillColor: '#4499ff', fillOpacity: 0.07 }).addTo(map);
+    var c2 = L.circle([lat, lng], { radius: 3800, color: '#ff5555', weight: 2.5, opacity: 0.9, fillColor: '#ff5555', fillOpacity: 0.05 }).addTo(map);
+    centerMarker = L.marker([lat, lng])
       .bindPopup('<b>' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</b><br>中心点')
-      .addTo(map)
-      .openPopup();
-
+      .addTo(map).openPopup();
     circles = [c1, c2];
-
-    // 両方の円が収まるようにズーム
     map.fitBounds(c2.getBounds(), { padding: [30, 30] });
     showStatus('中心: ' + lat.toFixed(6) + ', ' + lng.toFixed(6));
   }
@@ -192,14 +236,57 @@
   function clearCircles() {
     circles.forEach(function(c) { map.removeLayer(c); });
     circles = [];
-    if (marker) { map.removeLayer(marker); marker = null; }
+    if (centerMarker) { map.removeLayer(centerMarker); centerMarker = null; }
+  }
+
+  // ---- 精霊プロット ----
+  function loadCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var lines = e.target.result.split(/\r?\n/);
+      clearSpirits();
+      var count = 0;
+      for (var i = 1; i < lines.length; i++) {  // 1行目はヘッダーをスキップ
+        var cols = lines[i].split(',');
+        if (cols.length < 4) continue;
+        var date = cols[0].trim();
+        var name = cols[1].trim();
+        var lat  = parseFloat(cols[2]);
+        var lng  = parseFloat(cols[3]);
+        if (isNaN(lat) || isNaN(lng)) continue;
+        var cfg = SPIRIT_CONFIG[name];
+        if (!cfg) continue;
+        var icon = L.divIcon({
+          className: '',
+          html: '<div class="spirit-marker ' + cfg.cls + '"><i class="fa-solid ' + cfg.icon + '"></i></div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          popupAnchor: [0, -16]
+        });
+        var m = L.marker([lat, lng], { icon: icon })
+          .bindPopup('<b>' + name + '</b><br>' + date + '<br>' + lat.toFixed(6) + ', ' + lng.toFixed(6))
+          .addTo(map);
+        spiritMarkers.push(m);
+        count++;
+      }
+      input.value = '';  // 同じファイルを再選択できるようにリセット
+      showStatus(count + ' 件の精霊をプロットしました');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function clearSpirits() {
+    spiritMarkers.forEach(function(m) { map.removeLayer(m); });
+    spiritMarkers = [];
   }
 
   // Enter キーで描画
   document.getElementById('lat').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('lng').focus(); });
   document.getElementById('lng').addEventListener('keydown', function(e) { if (e.key === 'Enter') draw(); });
 
-  // クリップボードからの貼り付け: "lat, lng" 形式を自動分割
+  // 貼り付け: "lat, lng" 形式を自動分割
   document.getElementById('lat').addEventListener('paste', function(e) {
     var text = (e.clipboardData || window.clipboardData).getData('text').trim();
     var parts = text.split(/[,\s]+/);
