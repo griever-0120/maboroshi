@@ -143,9 +143,9 @@
     }
     .hex-toggle input[type="checkbox"] { cursor: pointer; accent-color: #4285F4; }
     .hex-swatch { display: inline-block; width: 14px; height: 10px; border-radius: 2px; border: 2px solid; }
-    .hs3 { border-color: #aa77ff; background: rgba(170,119,255,0.15); }
-    .hs4 { border-color: #ffaa00; background: rgba(255,170,0,0.12); }
-    .hs5 { border-color: #44ffaa; background: rgba(68,255,170,0.12); }
+    .hs3 { border-color: #cc44ff; background: rgba(204,68,255,0.15); }
+    .hs4 { border-color: #ff0088; background: rgba(255,0,136,0.12); }
+    .hs5 { border-color: #00ccff; background: rgba(0,204,255,0.12); }
 
     /* 精霊マーカー */
     .spirit-marker {
@@ -439,9 +439,9 @@ var GeoHex = (function () {
 
   // ---- GeoHex グリッド ----
   var HEX_STYLES = {
-    3: { color: '#aa77ff', weight: 1.2, opacity: 0.7, fillColor: '#aa77ff', fillOpacity: 0.06 },
-    4: { color: '#ffaa00', weight: 1.0, opacity: 0.7, fillColor: '#ffaa00', fillOpacity: 0.05 },
-    5: { color: '#44ffaa', weight: 0.8, opacity: 0.7, fillColor: '#44ffaa', fillOpacity: 0.05 }
+    3: { color: '#cc44ff', weight: 1.5, opacity: 0.85, fillColor: '#cc44ff', fillOpacity: 0.06 },
+    4: { color: '#ff0088', weight: 1.5, opacity: 0.85, fillColor: '#ff0088', fillOpacity: 0.05 },
+    5: { color: '#00ccff', weight: 1.5, opacity: 0.85, fillColor: '#00ccff', fillOpacity: 0.05 }
   };
   var hexLayers = {
     3: L.layerGroup(),
