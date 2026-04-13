@@ -147,6 +147,18 @@
     .hs4 { border-color: #ff0088; background: rgba(255,0,136,0.12); }
     .hs5 { border-color: #00ccff; background: rgba(0,204,255,0.12); }
 
+    /* バス停マーカー */
+    .bus-marker {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      color: #fff;
+      background: #4a5568;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+
     /* 精霊マーカー */
     .spirit-marker {
       width: 28px; height: 28px;
@@ -187,6 +199,8 @@
     <label class="hex-toggle"><input type="checkbox" id="hex3"><span class="hex-swatch hs3"></span>Lv3</label>
     <label class="hex-toggle"><input type="checkbox" id="hex4"><span class="hex-swatch hs4"></span>Lv4</label>
     <label class="hex-toggle"><input type="checkbox" id="hex5"><span class="hex-swatch hs5"></span>Lv5</label>
+    <div class="divider"></div>
+    <label class="hex-toggle"><input type="checkbox" id="busToggle"><span class="si" style="background:#4a5568;width:14px;height:14px;font-size:8px;"><i class="fa-solid fa-bus"></i></span>バス停</label>
   </div>
 </header>
 
@@ -500,6 +514,45 @@ var GeoHex = (function () {
         map.removeLayer(hexLayers[lv]);
       }
     });
+  });
+
+  // ---- バス停プロット ----
+  var busLayer = L.layerGroup();
+  var busLoaded = false;
+
+  function loadBusStops() {
+    if (busLoaded) { busLayer.addTo(map); return; }
+    fetch('busstops.json')
+      .then(function(res) {
+        if (!res.ok) throw new Error('busstops.json が見つかりません');
+        return res.json();
+      })
+      .then(function(data) {
+        busLoaded = true;
+        var busIcon = L.divIcon({
+          className: '',
+          html: '<div class="bus-marker"><i class="fa-solid fa-bus"></i></div>',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+          popupAnchor: [0, -14]
+        });
+        data.forEach(function(stop) {
+          L.marker([stop.lat, stop.lng], { icon: busIcon })
+            .bindPopup('<b><i class="fa-solid fa-bus"></i> ' + stop.name + '</b>')
+            .addTo(busLayer);
+        });
+        busLayer.addTo(map);
+        showStatus('バス停 ' + data.length + ' 件をプロットしました');
+      })
+      .catch(function(err) { showStatus('⚠ ' + err.message); });
+  }
+
+  document.getElementById('busToggle').addEventListener('change', function() {
+    if (this.checked) {
+      loadBusStops();
+    } else {
+      map.removeLayer(busLayer);
+    }
   });
 
   // ページ読込時に自動でCSV取得
