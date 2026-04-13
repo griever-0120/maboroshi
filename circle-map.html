@@ -168,17 +168,16 @@
 <header>
   <h1>🗺 円描画マップ</h1>
   <div class="input-group">
-    <input type="text" id="lat" placeholder="緯度 例: 33.5897" />
-    <input type="text" id="lng" placeholder="経度 例: 130.3993" />
-    <button onclick="draw()">円を描く</button>
+    <input type="text" id="lat" style="display:none" />
+    <input type="text" id="lng" style="display:none" />
     <button class="btn-clear" onclick="clearCircles()">クリア</button>
-    <span class="error" id="err">⚠ 有効な緯度・経度を入力してください</span>
+    <span class="error" id="err" style="display:none"></span>
     <div class="divider"></div>
     <select id="dateFilter" onchange="onDateChange()"></select>
   </div>
   <div class="legend">
     <span><span class="legend-dot dot-blue"></span>750m</span>
-    <span><span class="legend-dot dot-red"></span>3.8km</span>
+    <span><span class="legend-dot dot-red"></span>3km</span>
     <div class="divider"></div>
     <span class="legend-spirit"><span class="si si-fire"><i class="fa-solid fa-fire"></i></span>炎</span>
     <span class="legend-spirit"><span class="si si-water"><i class="fa-solid fa-droplet"></i></span>水</span>
@@ -312,7 +311,7 @@ var GeoHex = (function () {
     err.classList.remove('show');
     clearCircles();
     var c1 = L.circle([lat, lng], { radius: 750,  color: '#4499ff', weight: 2.5, opacity: 0.9, fillColor: '#4499ff', fillOpacity: 0.07 }).addTo(map);
-    var c2 = L.circle([lat, lng], { radius: 3800, color: '#ff5555', weight: 2.5, opacity: 0.9, fillColor: '#ff5555', fillOpacity: 0.05 }).addTo(map);
+    var c2 = L.circle([lat, lng], { radius: 3000, color: '#ff5555', weight: 2.5, opacity: 0.9, fillColor: '#ff5555', fillOpacity: 0.05 }).addTo(map);
     centerMarker = L.marker([lat, lng], { interactive: false })
       .addTo(map);
     circles = [c1, c2];
