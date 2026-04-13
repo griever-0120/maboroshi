@@ -519,9 +519,19 @@ var GeoHex = (function () {
   // ---- バス停プロット ----
   var busLayer = L.layerGroup();
   var busLoaded = false;
+  var BUS_MIN_ZOOM = 13;  // この値以上のズームでのみ表示
+
+  function updateBusVisibility() {
+    if (!document.getElementById('busToggle').checked) return;
+    if (map.getZoom() >= BUS_MIN_ZOOM) {
+      if (!map.hasLayer(busLayer)) busLayer.addTo(map);
+    } else {
+      if (map.hasLayer(busLayer)) map.removeLayer(busLayer);
+    }
+  }
 
   function loadBusStops() {
-    if (busLoaded) { busLayer.addTo(map); return; }
+    if (busLoaded) { updateBusVisibility(); return; }
     fetch('busstops.json')
       .then(function(res) {
         if (!res.ok) throw new Error('busstops.json が見つかりません');
@@ -538,10 +548,13 @@ var GeoHex = (function () {
         });
         data.forEach(function(stop) {
           L.marker([stop.lat, stop.lng], { icon: busIcon })
-            .bindPopup('<b><i class="fa-solid fa-bus"></i> ' + stop.name + '</b>')
+            .bindPopup(
+              '<b><i class="fa-solid fa-bus"></i> ' + stop.name + '</b><br>' +
+              stop.lat.toFixed(6) + ', ' + stop.lng.toFixed(6)
+            )
             .addTo(busLayer);
         });
-        busLayer.addTo(map);
+        updateBusVisibility();
         showStatus('バス停 ' + data.length + ' 件をプロットしました');
       })
       .catch(function(err) { showStatus('⚠ ' + err.message); });
@@ -554,6 +567,8 @@ var GeoHex = (function () {
       map.removeLayer(busLayer);
     }
   });
+
+  map.on('zoomend', updateBusVisibility);
 
   // ページ読込時に自動でCSV取得
   fetchCSV();
