@@ -474,9 +474,16 @@ var GeoHex = (function () {
     var swM = GeoHex.loc2xy(bounds.getWest(),  bounds.getSouth());
     var neM = GeoHex.loc2xy(bounds.getEast(),  bounds.getNorth());
 
-    var seen = {}, count = 0, MAX = 400;
+    // サンプリング点数が多すぎる（広域すぎる）場合は描画しない
+    var xSteps = Math.ceil((neM.x - swM.x + 2 * unitX) / stepX);
+    var ySteps = Math.ceil((neM.y - swM.y + 2 * unitY) / stepY);
+    if (xSteps * ySteps > 8000) {
+      showStatus('Lv' + level + ' GeoHex: ズームを拡大してください');
+      return;
+    }
 
-    outer:
+    var seen = {};
+
     for (var mx = swM.x - unitX; mx <= neM.x + unitX; mx += stepX) {
       for (var my = swM.y - unitY; my <= neM.y + unitY; my += stepY) {
         var loc = GeoHex.xy2loc(mx, my);
@@ -484,7 +491,6 @@ var GeoHex = (function () {
         var key = xy.x + '_' + xy.y;
         if (seen[key]) continue;
         seen[key] = true;
-        if (++count > MAX) break outer;
         var ctr    = GeoHex.getCellCenter(xy.x, xy.y, level);
         var coords = GeoHex.getHexCoords(ctr.lat, ctr.lon, level);
         L.polygon(coords, HEX_STYLES[level]).addTo(hexLayers[level]);
