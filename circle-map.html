@@ -7,202 +7,497 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
+    :root {
+      /* Apple system colors (light) */
+      --sys-blue:   #007AFF;
+      --sys-blue-2: #0066D6;
+      --sys-red:    #FF3B30;
+      --sys-orange: #FF9500;
+      --sys-teal:   #30B0C7;
+      --sys-green:  #34C759;
+      --sys-purple: #AF52DE;
+      --sys-pink:   #FF2D55;
+      --sys-brown:  #A2845E;
+      --sys-gray:   #8E8E93;
+      --sys-gray-2: #AEAEB2;
+      --sys-gray-3: #C7C7CC;
+      --sys-gray-4: #D1D1D6;
+      --sys-gray-5: #E5E5EA;
+      --sys-gray-6: #F2F2F7;
+
+      --label:        rgba(0,0,0,0.88);
+      --label-2:      rgba(60,60,67,0.78);
+      --label-3:      rgba(60,60,67,0.56);
+      --label-4:      rgba(60,60,67,0.36);
+      --separator:    rgba(60,60,67,0.16);
+      --hair:         rgba(60,60,67,0.10);
+
+      --panel-bg:     rgba(255,255,255,0.72);
+      --panel-stroke: rgba(255,255,255,0.7);
+      --panel-shadow: 0 10px 40px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+      --chip-bg:      rgba(118,118,128,0.12);
+      --chip-bg-hover:rgba(118,118,128,0.18);
+
+      --radius-panel: 18px;
+      --radius-chip:  10px;
+      --radius-pill:  999px;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-feature-settings: "ss01", "cv11";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      color: var(--label);
+      background: #eef2f6;
+      overflow: hidden;
+    }
 
-    header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 16px;
-      background: #16213e;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      flex-wrap: wrap;
+    /* ---- Map fills the screen; panel floats above ---- */
+    #map {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      background: #eef2f6;
+    }
+
+    /* Leaflet attribution — make it match Apple's quiet footer */
+    .leaflet-control-attribution {
+      background: rgba(255,255,255,0.72) !important;
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-radius: 8px 0 0 0;
+      font-size: 10px !important;
+      color: var(--label-3) !important;
+      padding: 3px 8px !important;
+    }
+    .leaflet-control-attribution a { color: var(--label-2) !important; }
+
+    /* Leaflet zoom control — Apple Maps style */
+    .leaflet-bar {
+      border: none !important;
+      box-shadow: var(--panel-shadow) !important;
+      border-radius: 12px !important;
+      overflow: hidden;
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+    }
+    .leaflet-bar a {
+      background: rgba(255,255,255,0.82) !important;
+      color: var(--label) !important;
+      border-bottom: 1px solid var(--hair) !important;
+      width: 36px !important;
+      height: 36px !important;
+      line-height: 36px !important;
+      font-size: 18px !important;
+      font-weight: 300 !important;
+    }
+    .leaflet-bar a:last-child { border-bottom: none !important; }
+    .leaflet-bar a:hover { background: rgba(255,255,255,0.95) !important; }
+    .leaflet-top.leaflet-left { top: 16px; left: 16px; }
+
+    /* -------- Floating panel -------- */
+    .panel {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 1000;
-    }
-
-    header h1 { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; }
-
-    .input-group {
+      width: min(960px, calc(100vw - 32px));
+      background: var(--panel-bg);
+      backdrop-filter: saturate(180%) blur(30px);
+      -webkit-backdrop-filter: saturate(180%) blur(30px);
+      border: 0.5px solid var(--panel-stroke);
+      border-radius: var(--radius-panel);
+      box-shadow: var(--panel-shadow);
+      padding: 10px 12px;
       display: flex;
-      gap: 8px;
       align-items: center;
-      flex: 1;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
-    input[type="text"] {
-      background: #0f3460;
-      border: 1px solid #2a5298;
-      color: #fff;
-      padding: 7px 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      width: 160px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    input[type="text"]:focus { border-color: #4285F4; }
-    input[type="text"]::placeholder { color: #667; }
-
-    button {
-      background: #4285F4;
-      color: #fff;
-      border: none;
-      padding: 7px 18px;
-      border-radius: 6px;
-      font-size: 14px;
+    .panel-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
       font-weight: 600;
-      cursor: pointer;
+      letter-spacing: -0.01em;
+      color: var(--label);
+      padding: 0 4px 0 6px;
       white-space: nowrap;
-      transition: background 0.2s;
     }
-    button:hover { background: #3367d6; }
-
-    .btn-clear { background: #555; }
-    .btn-clear:hover { background: #777; }
-
-    select#dateFilter {
-      background: #0f3460;
-      border: 1px solid #2a5298;
+    .panel-title .title-mark {
+      width: 24px; height: 24px;
+      border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+      /* 4属性（炎→風→水→大地）を循環させた精霊カラー */
+      background:
+        conic-gradient(from 210deg,
+          var(--sys-orange) 0deg,
+          #FF2D55 60deg,
+          var(--sys-purple) 130deg,
+          var(--sys-blue) 200deg,
+          var(--sys-teal) 260deg,
+          var(--sys-brown) 320deg,
+          var(--sys-orange) 360deg);
       color: #fff;
+      font-size: 12px;
+      box-shadow:
+        0 2px 6px rgba(0,0,0,0.18),
+        inset 0 0.5px 0 rgba(255,255,255,0.5),
+        inset 0 0 0 0.5px rgba(255,255,255,0.25);
+      text-shadow: 0 0 6px rgba(255,255,255,0.55);
+    }
+
+    .divider-v {
+      width: 1px;
+      align-self: stretch;
+      background: var(--separator);
+      margin: 4px 2px;
+    }
+
+    /* Buttons */
+    .btn {
+      appearance: none;
+      border: none;
+      background: var(--chip-bg);
+      color: var(--label);
+      padding: 7px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease, transform 0.08s ease;
+      font-family: inherit;
+    }
+    .btn:hover { background: var(--chip-bg-hover); }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--sys-blue);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--sys-blue-2); }
+    .btn .ic { font-size: 11px; color: var(--label-2); }
+    .btn-primary .ic { color: rgba(255,255,255,0.85); }
+
+    /* Inputs (kept hidden in original; preserve class) */
+    input[type="text"].apple-input {
+      background: rgba(255,255,255,0.7);
+      border: 0.5px solid var(--separator);
+      color: var(--label);
       padding: 7px 12px;
-      border-radius: 6px;
-      font-size: 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      width: 150px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+    }
+    input[type="text"].apple-input:focus {
+      border-color: var(--sys-blue);
+      box-shadow: 0 0 0 3px rgba(0,122,255,0.2);
+    }
+
+    /* Select — Apple style pill */
+    .select-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .select-wrap::after {
+      content: "";
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      width: 7px; height: 7px;
+      border-right: 1.5px solid var(--label-2);
+      border-bottom: 1.5px solid var(--label-2);
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;
+    }
+    select#dateFilter {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--chip-bg);
+      border: none;
+      color: var(--label);
+      padding: 7px 28px 7px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
       outline: none;
       cursor: pointer;
-      transition: border-color 0.2s;
+      font-family: inherit;
+      transition: background 0.15s;
     }
-    select#dateFilter:focus { border-color: #4285F4; }
-    select#dateFilter option { background: #0f3460; }
+    select#dateFilter:hover { background: var(--chip-bg-hover); }
+    select#dateFilter option { background: #fff; color: var(--label); }
 
-    .divider { width: 1px; height: 24px; background: #334; flex-shrink: 0; }
-
+    /* Legend dots (radius circles) */
     .legend {
       display: flex;
       gap: 10px;
-      font-size: 12px;
       align-items: center;
       flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--label-2);
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: var(--chip-bg);
+      border-radius: var(--radius-pill);
+      font-weight: 500;
+      color: var(--label);
+      font-size: 12px;
     }
     .legend-dot {
       display: inline-block;
-      width: 12px; height: 12px;
+      width: 10px; height: 10px;
       border-radius: 50%;
-      border: 2px solid;
-      margin-right: 3px;
-      vertical-align: middle;
+      border: 1.5px solid;
     }
-    .dot-blue  { border-color: #4499ff; background: rgba(68,153,255,0.2); }
-    .dot-red   { border-color: #ff5555; background: rgba(255,85,85,0.15); }
+    .dot-blue  { border-color: var(--sys-blue);   background: rgba(0,122,255,0.18); }
+    .dot-red   { border-color: var(--sys-red);    background: rgba(255,59,48,0.15); }
 
-    .legend-spirit {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-    }
-    .si { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; }
-    .si-fire  { background: #e05020; }
-    .si-water { background: #1a7acc; }
-    .si-wind  { background: #20a090; }
-    .si-earth { background: #7a6020; }
-
-    #map { flex: 1; width: 100%; }
-
-    #status {
-      position: fixed;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.75);
+    /* Spirit chips in legend */
+    .si {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 9px;
       color: #fff;
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-size: 13px;
-      z-index: 9999;
-      opacity: 0;
-      transition: opacity 0.3s;
-      white-space: nowrap;
-      pointer-events: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.15), inset 0 0.5px 0 rgba(255,255,255,0.4);
     }
-    #status.show { opacity: 1; }
+    .si-fire  { background: linear-gradient(180deg, #FF8A5B, var(--sys-orange)); }
+    .si-water { background: linear-gradient(180deg, #4CA3FF, var(--sys-blue)); }
+    .si-wind  { background: linear-gradient(180deg, #5FCFC2, var(--sys-teal)); }
+    .si-earth { background: linear-gradient(180deg, #C2A378, var(--sys-brown)); }
 
-    .error { color: #ff7b7b; font-size: 13px; display: none; }
-    .error.show { display: block; }
-
-    /* GeoHex トグル */
+    /* Toggles — Apple segmented control vibe (pill with icon) */
     .hex-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       font-size: 12px;
       cursor: pointer;
       user-select: none;
       white-space: nowrap;
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--chip-bg);
+      color: var(--label);
+      font-weight: 500;
+      transition: background 0.15s;
+      position: relative;
     }
-    .hex-toggle input[type="checkbox"] { cursor: pointer; accent-color: #4285F4; }
-    .hex-swatch { display: inline-block; width: 14px; height: 10px; border-radius: 2px; border: 2px solid; }
-    .hs3 { border-color: #cc44ff; background: rgba(204,68,255,0.15); }
-    .hs4 { border-color: #ff0088; background: rgba(255,0,136,0.12); }
-    .hs5 { border-color: #00ccff; background: rgba(0,204,255,0.12); }
+    .hex-toggle:hover { background: var(--chip-bg-hover); }
+    .hex-toggle input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 30px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--sys-gray-4);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .hex-toggle input[type="checkbox"]::after {
+      content: "";
+      position: absolute;
+      top: 1.5px;
+      left: 1.5px;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+      transition: transform 0.2s ease;
+    }
+    .hex-toggle input[type="checkbox"]:checked { background: var(--sys-green); }
+    .hex-toggle input[type="checkbox"]:checked::after { transform: translateX(12px); }
 
-    /* バス停マーカー */
+    .hex-swatch {
+      display: inline-block;
+      width: 14px; height: 10px;
+      border-radius: 3px;
+      border: 1.5px solid;
+    }
+    .hs3 { border-color: var(--sys-purple); background: rgba(175,82,222,0.15); }
+    .hs4 { border-color: var(--sys-pink);   background: rgba(255,45,85,0.14); }
+    .hs5 { border-color: var(--sys-teal);   background: rgba(48,176,199,0.14); }
+
+    /* Error text */
+    .error {
+      color: var(--sys-red);
+      font-size: 12px;
+      display: none;
+      font-weight: 500;
+    }
+    .error.show { display: inline-block; }
+
+    /* Status pill (toast) */
+    #status {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: saturate(180%) blur(30px);
+      -webkit-backdrop-filter: saturate(180%) blur(30px);
+      border: 0.5px solid var(--panel-stroke);
+      color: var(--label);
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: var(--panel-shadow);
+    }
+    #status.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ---- Map markers ---- */
     .bus-marker {
       width: 22px; height: 22px;
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-size: 10px;
       color: #fff;
-      background: #4a5568;
-      border: 1.5px solid rgba(255,255,255,0.5);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+      background: linear-gradient(180deg, #A8A8AD, #6E6E73);
+      border: 1.5px solid rgba(255,255,255,0.95);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.22), inset 0 0.5px 0 rgba(255,255,255,0.3);
     }
 
-    /* 精霊マーカー */
     .spirit-marker {
-      width: 28px; height: 28px;
+      width: 30px; height: 30px;
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-size: 13px;
       color: #fff;
-      border: 2px solid rgba(255,255,255,0.6);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      border: 2px solid rgba(255,255,255,0.95);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.22), inset 0 0.5px 0 rgba(255,255,255,0.4);
     }
-    .sm-fire  { background: #e05020; }
-    .sm-water { background: #1a7acc; }
-    .sm-wind  { background: #20a090; }
-    .sm-earth { background: #7a6020; }
+    .sm-fire  { background: linear-gradient(180deg, #FF8A5B, var(--sys-orange)); }
+    .sm-water { background: linear-gradient(180deg, #4CA3FF, var(--sys-blue)); }
+    .sm-wind  { background: linear-gradient(180deg, #5FCFC2, var(--sys-teal)); }
+    .sm-earth { background: linear-gradient(180deg, #C2A378, var(--sys-brown)); }
+
+    /* ---- Popup styling ---- */
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px !important;
+      background: rgba(255,255,255,0.92) !important;
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08) !important;
+      border: 0.5px solid var(--panel-stroke);
+    }
+    .leaflet-popup-content {
+      margin: 12px 16px !important;
+      font-size: 13px !important;
+      color: var(--label) !important;
+      font-family: inherit !important;
+      line-height: 1.45 !important;
+    }
+    .leaflet-popup-content b {
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      font-size: 13.5px;
+    }
+    .leaflet-popup-tip {
+      background: rgba(255,255,255,0.92) !important;
+      box-shadow: none !important;
+    }
+    .leaflet-popup-close-button {
+      color: var(--label-3) !important;
+      font-size: 20px !important;
+      padding: 6px 8px 0 0 !important;
+    }
+
+    /* Responsive: stack on narrow */
+    @media (max-width: 720px) {
+      .panel {
+        top: 8px;
+        width: calc(100vw - 16px);
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      .panel-title { font-size: 14px; }
+      .legend { gap: 6px; }
+      .legend-item { padding: 3px 8px; font-size: 11px; }
+      .hex-toggle { padding: 4px 8px; font-size: 11px; }
+      .divider-v { display: none; }
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>🗺 円描画マップ</h1>
-  <div class="input-group">
-    <input type="text" id="lat" style="display:none" />
-    <input type="text" id="lng" style="display:none" />
-    <button class="btn-clear" onclick="clearCircles()">クリア</button>
-    <span class="error" id="err" style="display:none"></span>
-    <div class="divider"></div>
-    <select id="dateFilter" onchange="onDateChange()"></select>
+<div class="panel" role="toolbar" aria-label="マップコントロール">
+  <div class="panel-title">
+    <span class="title-mark" aria-hidden="true"><i class="fa-solid fa-wand-sparkles"></i></span>
   </div>
-  <div class="legend">
-    <span><span class="legend-dot dot-blue"></span>750m</span>
-    <span><span class="legend-dot dot-red"></span>3km</span>
-    <div class="divider"></div>
-    <span class="legend-spirit"><span class="si si-fire"><i class="fa-solid fa-fire"></i></span>炎</span>
-    <span class="legend-spirit"><span class="si si-water"><i class="fa-solid fa-droplet"></i></span>水</span>
-    <span class="legend-spirit"><span class="si si-wind"><i class="fa-solid fa-wind"></i></span>風</span>
-    <span class="legend-spirit"><span class="si si-earth"><i class="fa-solid fa-mountain"></i></span>大地</span>
-    <div class="divider"></div>
+
+  <div class="divider-v"></div>
+
+  <input type="text" id="lat" class="apple-input" style="display:none" />
+  <input type="text" id="lng" class="apple-input" style="display:none" />
+  <button class="btn" onclick="clearCircles()">
+    <i class="fa-solid fa-xmark ic"></i>クリア
+  </button>
+  <span class="error" id="err"></span>
+
+  <div class="divider-v"></div>
+
+  <div class="select-wrap">
+    <select id="dateFilter" onchange="onDateChange()" aria-label="日付フィルター"></select>
+  </div>
+
+  <div class="divider-v"></div>
+
+  <div class="legend" aria-label="凡例">
+    <span class="legend-item"><span class="legend-dot dot-blue"></span>750m</span>
+    <span class="legend-item"><span class="legend-dot dot-red"></span>3km</span>
+
+    <span class="legend-item"><span class="si si-fire"><i class="fa-solid fa-fire"></i></span>炎</span>
+    <span class="legend-item"><span class="si si-water"><i class="fa-solid fa-droplet"></i></span>水</span>
+    <span class="legend-item"><span class="si si-wind"><i class="fa-solid fa-wind"></i></span>風</span>
+    <span class="legend-item"><span class="si si-earth"><i class="fa-solid fa-mountain"></i></span>大地</span>
+
     <label class="hex-toggle"><input type="checkbox" id="hex3"><span class="hex-swatch hs3"></span>Lv3</label>
     <label class="hex-toggle"><input type="checkbox" id="hex4"><span class="hex-swatch hs4"></span>Lv4</label>
     <label class="hex-toggle"><input type="checkbox" id="hex5"><span class="hex-swatch hs5"></span>Lv5</label>
-    <div class="divider"></div>
-    <label class="hex-toggle"><input type="checkbox" id="busToggle"><span class="si" style="background:#4a5568;width:14px;height:14px;font-size:8px;"><i class="fa-solid fa-bus"></i></span>バス停</label>
+
+    <label class="hex-toggle">
+      <input type="checkbox" id="busToggle">
+      <span class="si" style="background: linear-gradient(180deg, #A8A8AD, #6E6E73); width:14px; height:14px; font-size:7px;">
+        <i class="fa-solid fa-bus"></i>
+      </span>
+      バス停
+    </label>
   </div>
-</header>
+</div>
 
 <div id="map"></div>
 <div id="status"></div>
@@ -212,8 +507,8 @@
 /* GeoHex v3 - derived from https://github.com/leon-win/geohex (MIT) */
 var GeoHex = (function () {
   var BASE = 20037508.34;
-  var K    = Math.tan(Math.PI / 6);  // tan(30°)
-  var DEG  = Math.tan(Math.PI / 3);  // tan(60°)
+  var K    = Math.tan(Math.PI / 6);
+  var DEG  = Math.tan(Math.PI / 3);
 
   function calcHexSize(level) { return BASE / Math.pow(3, level + 3); }
 
@@ -287,7 +582,7 @@ var GeoHex = (function () {
 })();
 </script>
 <script>
-  var map = L.map('map', { zoomControl: true }).setView([33.5897, 130.3993], 13);
+  var map = L.map('map', { zoomControl: true, attributionControl: true }).setView([33.5897, 130.3993], 13);
 
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a>',
@@ -320,14 +615,14 @@ var GeoHex = (function () {
     var lat = parseFloat(latVal);
     var lng = parseFloat(lngVal);
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      err.textContent = '座標が正しくありません';
       err.classList.add('show'); return;
     }
     err.classList.remove('show');
     clearCircles();
-    var c1 = L.circle([lat, lng], { radius: 750,  color: '#4499ff', weight: 2.5, opacity: 0.9, fillColor: '#4499ff', fillOpacity: 0.07 }).addTo(map);
-    var c2 = L.circle([lat, lng], { radius: 3000, color: '#ff5555', weight: 2.5, opacity: 0.9, fillColor: '#ff5555', fillOpacity: 0.05 }).addTo(map);
-    centerMarker = L.marker([lat, lng], { interactive: false })
-      .addTo(map);
+    var c1 = L.circle([lat, lng], { radius: 750,  color: '#007AFF', weight: 2, opacity: 0.9, fillColor: '#007AFF', fillOpacity: 0.08 }).addTo(map);
+    var c2 = L.circle([lat, lng], { radius: 3000, color: '#FF3B30', weight: 2, opacity: 0.9, fillColor: '#FF3B30', fillOpacity: 0.05 }).addTo(map);
+    centerMarker = L.marker([lat, lng], { interactive: false }).addTo(map);
     circles = [c1, c2];
     map.fitBounds(c2.getBounds(), { padding: [30, 30] });
     showStatus('中心: ' + lat.toFixed(6) + ', ' + lng.toFixed(6));
@@ -366,8 +661,8 @@ var GeoHex = (function () {
       var icon = L.divIcon({
         className: '',
         html: '<div class="spirit-marker ' + cfg.cls + '"><i class="fa-solid ' + cfg.icon + '"></i></div>',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
         popupAnchor: [0, -16]
       });
       var m = L.marker([row.lat, row.lng], { icon: icon })
@@ -389,13 +684,13 @@ var GeoHex = (function () {
   function buildDateSelector(data) {
     var dates = [];
     data.forEach(function(row) { if (dates.indexOf(row.date) === -1) dates.push(row.date); });
-    dates.sort(function(a, b) { return b.localeCompare(a); }); // 降順
+    dates.sort(function(a, b) { return b.localeCompare(a); });
 
     var sel = document.getElementById('dateFilter');
     sel.innerHTML = '';
     var optAll = document.createElement('option');
     optAll.value = 'all';
-    optAll.textContent = 'all';
+    optAll.textContent = 'すべて';
     sel.appendChild(optAll);
     dates.forEach(function(d) {
       var opt = document.createElement('option');
@@ -404,17 +699,14 @@ var GeoHex = (function () {
       sel.appendChild(opt);
     });
 
-    // 今日の日付を初期選択（なければ先頭=all）
     var today = new Date();
     var mm = String(today.getMonth() + 1).padStart(2, '0');
     var dd = String(today.getDate()).padStart(2, '0');
     var todayStr = today.getFullYear() + '/' + mm + '/' + dd;
-    // CSVの日付フォーマットに合わせて複数パターン試す
     var found = dates.some(function(d) { return d === todayStr; });
     if (found) {
       sel.value = todayStr;
     } else {
-      // ハイフン区切りでも試す
       var todayHyphen = today.getFullYear() + '-' + mm + '-' + dd;
       found = dates.some(function(d) { return d === todayHyphen; });
       sel.value = found ? todayHyphen : 'all';
@@ -452,9 +744,9 @@ var GeoHex = (function () {
 
   // ---- GeoHex グリッド ----
   var HEX_STYLES = {
-    3: { color: '#cc44ff', weight: 1.5, opacity: 0.85, fillColor: '#cc44ff', fillOpacity: 0.06 },
-    4: { color: '#ff0088', weight: 1.5, opacity: 0.85, fillColor: '#ff0088', fillOpacity: 0.05 },
-    5: { color: '#00ccff', weight: 1.5, opacity: 0.85, fillColor: '#00ccff', fillOpacity: 0.05 }
+    3: { color: '#AF52DE', weight: 1.2, opacity: 0.85, fillColor: '#AF52DE', fillOpacity: 0.07 },
+    4: { color: '#FF2D55', weight: 1.2, opacity: 0.85, fillColor: '#FF2D55', fillOpacity: 0.06 },
+    5: { color: '#30B0C7', weight: 1.2, opacity: 0.85, fillColor: '#30B0C7', fillOpacity: 0.06 }
   };
   var hexLayers = {
     3: L.layerGroup(),
@@ -474,7 +766,6 @@ var GeoHex = (function () {
     var swM = GeoHex.loc2xy(bounds.getWest(),  bounds.getSouth());
     var neM = GeoHex.loc2xy(bounds.getEast(),  bounds.getNorth());
 
-    // サンプリング点数が多すぎる（広域すぎる）場合は描画しない
     var xSteps = Math.ceil((neM.x - swM.x + 2 * unitX) / stepX);
     var ySteps = Math.ceil((neM.y - swM.y + 2 * unitY) / stepY);
     if (xSteps * ySteps > 8000) {
@@ -525,7 +816,7 @@ var GeoHex = (function () {
   // ---- バス停プロット ----
   var busLayer = L.layerGroup();
   var busLoaded = false;
-  var BUS_MIN_ZOOM = 13;  // この値以上のズームでのみ表示
+  var BUS_MIN_ZOOM = 13;
 
   function updateBusVisibility() {
     if (!document.getElementById('busToggle').checked) return;
@@ -576,14 +867,11 @@ var GeoHex = (function () {
 
   map.on('zoomend', updateBusVisibility);
 
-  // ページ読込時に自動でCSV取得
   fetchCSV();
 
-  // Enter キーで描画
   document.getElementById('lat').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('lng').focus(); });
   document.getElementById('lng').addEventListener('keydown', function(e) { if (e.key === 'Enter') draw(); });
 
-  // 貼り付け: "lat, lng" 形式を自動分割
   document.getElementById('lat').addEventListener('paste', function(e) {
     var text = (e.clipboardData || window.clipboardData).getData('text').trim();
     var parts = text.split(/[,\s]+/);
