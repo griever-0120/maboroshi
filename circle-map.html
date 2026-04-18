@@ -666,7 +666,7 @@ var GeoHex = (function () {
         popupAnchor: [0, -16]
       });
       var m = L.marker([row.lat, row.lng], { icon: icon })
-        .bindPopup('<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + row.lat + ',' + row.lng + '" target="_blank" rel="noopener" style="float:right;color:#007AFF;font-size:15px;margin-left:8px;" title="Googleマップでルート検索"><i class="fa-solid fa-diamond-turn-right"></i></a><b>' + row.name + '</b><br>' + row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6) + '</div>')
+        .bindPopup('<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + row.lat + ',' + row.lng + '" target="_blank" rel="noopener" style="float:right;margin-left:8px;margin-right:18px;line-height:1;" title="Googleマップでルート検索"><img src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=32" width="18" height="18" style="vertical-align:middle;border-radius:4px;"></a><b>' + row.name + '</b><br>' + row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6) + '</div>')
         .addTo(map);
       (function(lat, lng, marker) {
         marker.on('click', function() {
@@ -846,7 +846,7 @@ var GeoHex = (function () {
         data.forEach(function(stop) {
           L.marker([stop.lat, stop.lng], { icon: busIcon })
             .bindPopup(
-              '<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + stop.lat + ',' + stop.lng + '" target="_blank" rel="noopener" style="float:right;color:#007AFF;font-size:15px;margin-left:8px;" title="Googleマップでルート検索"><i class="fa-solid fa-diamond-turn-right"></i></a><b><i class="fa-solid fa-bus"></i> ' + stop.name + '</b><br>' +
+              '<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + stop.lat + ',' + stop.lng + '" target="_blank" rel="noopener" style="float:right;margin-left:8px;margin-right:18px;line-height:1;" title="Googleマップでルート検索"><img src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=32" width="18" height="18" style="vertical-align:middle;border-radius:4px;"></a><b><i class="fa-solid fa-bus"></i> ' + stop.name + '</b><br>' +
               stop.lat.toFixed(6) + ', ' + stop.lng.toFixed(6) + '</div>'
             )
             .addTo(busLayer);
