@@ -341,6 +341,7 @@
     .hs3 { border-color: var(--sys-purple); background: rgba(175,82,222,0.15); }
     .hs4 { border-color: var(--sys-pink);   background: rgba(255,45,85,0.14); }
     .hs5 { border-color: var(--sys-teal);   background: rgba(48,176,199,0.14); }
+    .hs6 { border-color: var(--sys-green);  background: rgba(52,199,89,0.14); }
 
     /* Error text */
     .error {
@@ -485,9 +486,10 @@
     <span class="legend-item"><span class="si si-wind"><i class="fa-solid fa-wind"></i></span>風</span>
     <span class="legend-item"><span class="si si-earth"><i class="fa-solid fa-mountain"></i></span>大地</span>
 
-    <label class="hex-toggle"><input type="checkbox" id="hex3"><span class="hex-swatch hs3"></span>Lv3</label>
+    <label class="hex-toggle" style="display:none"><input type="checkbox" id="hex3"><span class="hex-swatch hs3"></span>Lv3</label>
     <label class="hex-toggle"><input type="checkbox" id="hex4"><span class="hex-swatch hs4"></span>Lv4</label>
     <label class="hex-toggle"><input type="checkbox" id="hex5"><span class="hex-swatch hs5"></span>Lv5</label>
+    <label class="hex-toggle"><input type="checkbox" id="hex6"><span class="hex-swatch hs6"></span>Lv6</label>
 
     <label class="hex-toggle">
       <input type="checkbox" id="busToggle">
@@ -746,12 +748,14 @@ var GeoHex = (function () {
   var HEX_STYLES = {
     3: { color: '#AF52DE', weight: 1.2, opacity: 0.85, fillColor: '#AF52DE', fillOpacity: 0.07 },
     4: { color: '#FF2D55', weight: 1.2, opacity: 0.85, fillColor: '#FF2D55', fillOpacity: 0.06 },
-    5: { color: '#30B0C7', weight: 1.2, opacity: 0.85, fillColor: '#30B0C7', fillOpacity: 0.06 }
+    5: { color: '#30B0C7', weight: 1.2, opacity: 0.85, fillColor: '#30B0C7', fillOpacity: 0.06 },
+    6: { color: '#34C759', weight: 1.2, opacity: 0.85, fillColor: '#34C759', fillOpacity: 0.06 }
   };
   var hexLayers = {
     3: L.layerGroup(),
     4: L.layerGroup(),
-    5: L.layerGroup()
+    5: L.layerGroup(),
+    6: L.layerGroup()
   };
 
   function renderHexLevel(level) {
@@ -790,7 +794,7 @@ var GeoHex = (function () {
   }
 
   function updateHexGrid() {
-    [3, 4, 5].forEach(function(lv) {
+    [4, 5, 6].forEach(function(lv) {
       if (document.getElementById('hex' + lv).checked) renderHexLevel(lv);
     });
   }
@@ -801,7 +805,7 @@ var GeoHex = (function () {
     hexDebounce = setTimeout(updateHexGrid, 150);
   });
 
-  [3, 4, 5].forEach(function(lv) {
+  [4, 5, 6].forEach(function(lv) {
     document.getElementById('hex' + lv).addEventListener('change', function() {
       if (this.checked) {
         hexLayers[lv].addTo(map);
