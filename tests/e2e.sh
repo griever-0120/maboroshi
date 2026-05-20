@@ -165,7 +165,7 @@ COVERS_VIEWPORT="(function(){
           hb.getEast()  >= mb.getEast()) ? 'true' : 'false';
 })()"
 
-for LV in 3 4 5; do
+for LV in 4 5 6; do
   assert_checked "Lv${LV} は初期状態でオフ" "#hex${LV}" "false"
 
   ab check "#hex${LV}" &>/dev/null

@@ -342,6 +342,7 @@
     .hs4 { border-color: var(--sys-pink);   background: rgba(255,45,85,0.14); }
     .hs5 { border-color: var(--sys-teal);   background: rgba(48,176,199,0.14); }
     .hs6 { border-color: var(--sys-green);  background: rgba(52,199,89,0.14); }
+    .hs-appear { border-color: var(--sys-green); background: rgba(52,199,89,0.55); }
 
     /* Error text */
     .error {
@@ -464,7 +465,7 @@
 
   <input type="text" id="lat" class="apple-input" style="display:none" />
   <input type="text" id="lng" class="apple-input" style="display:none" />
-  <button class="btn" onclick="clearCircles()">
+  <button class="btn btn-clear" onclick="clearCircles()">
     <i class="fa-solid fa-xmark ic"></i>クリア
   </button>
   <span class="error" id="err"></span>
@@ -490,6 +491,7 @@
     <label class="hex-toggle"><input type="checkbox" id="hex4"><span class="hex-swatch hs4"></span>Lv4</label>
     <label class="hex-toggle"><input type="checkbox" id="hex5"><span class="hex-swatch hs5"></span>Lv5</label>
     <label class="hex-toggle"><input type="checkbox" id="hex6"><span class="hex-swatch hs6"></span>Lv6</label>
+    <label class="hex-toggle"><input type="checkbox" id="hex6Appear"><span class="hex-swatch hs-appear"></span>出現</label>
 
     <label class="hex-toggle">
       <input type="checkbox" id="busToggle">
@@ -579,8 +581,50 @@ var GeoHex = (function () {
     return [[lat, LEFT],[TOP, CL],[TOP, CR],[lat, RIGHT],[BOTTOM, CR],[BOTTOM, CL]];
   }
 
+  var CODE_SYMBOLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+  function getCode(x, y, locX, level) {
+    var code3x = [];
+    var code3y = [];
+    var code = "";
+    var modX = x;
+    var modY = y;
+
+    for (var i = 0; i <= level + 2; i++) {
+      var pow = Math.pow(3, level + 2 - i);
+      if (modX >= Math.ceil(pow / 2)) { code3x[i] = 2; modX -= pow; }
+      else if (modX <= -Math.ceil(pow / 2)) { code3x[i] = 0; modX += pow; }
+      else { code3x[i] = 1; }
+
+      if (modY >= Math.ceil(pow / 2)) { code3y[i] = 2; modY -= pow; }
+      else if (modY <= -Math.ceil(pow / 2)) { code3y[i] = 0; modY += pow; }
+      else { code3y[i] = 1; }
+
+      if (i === 2 && (locX === -180 || locX >= 0)) {
+        if (code3x[0] === 2 && code3y[0] === 1 &&
+            code3x[1] === code3y[1] && code3x[2] === code3y[2]) {
+          code3x[0] = 1; code3y[0] = 2;
+        } else if (code3x[0] === 1 && code3y[0] === 0 &&
+                   code3x[1] === code3y[1] && code3x[2] === code3y[2]) {
+          code3x[0] = 0; code3y[0] = 1;
+        }
+      }
+    }
+
+    for (var j = 0; j < code3x.length; j++) {
+      code += parseInt("" + code3x[j] + code3y[j], 3);
+    }
+
+    var head = parseInt(code.substring(0, 3), 10);
+    var tail = code.substring(3);
+    return CODE_SYMBOLS.charAt(Math.floor(head / 30)) +
+           CODE_SYMBOLS.charAt(head % 30) +
+           tail;
+  }
+
   return { BASE: BASE, K: K, calcHexSize: calcHexSize, loc2xy: loc2xy, xy2loc: xy2loc,
-           getXYByLocation: getXYByLocation, getCellCenter: getCellCenter, getHexCoords: getHexCoords };
+           getXYByLocation: getXYByLocation, getCellCenter: getCellCenter, getHexCoords: getHexCoords,
+           getCode: getCode };
 })();
 </script>
 <script>
@@ -815,6 +859,73 @@ var GeoHex = (function () {
         map.removeLayer(hexLayers[lv]);
       }
     });
+  });
+
+  // ---- Lv6 出現マスク（コード末尾が 2/6 以外を薄緑で塗り、全マスに境界線を表示） ----
+  var appearLayer = L.layerGroup();
+  var APPEAR_FILL_STYLE = {
+    color: '#34C759', weight: 1.2, opacity: 0.85,
+    fillColor: '#34C759', fillOpacity: 0.18, interactive: false
+  };
+  var APPEAR_BORDER_STYLE = {
+    color: '#34C759', weight: 1.2, opacity: 0.85,
+    fill: false, interactive: false
+  };
+
+  function renderAppearMask() {
+    appearLayer.clearLayers();
+    if (!document.getElementById('hex6Appear').checked) return;
+
+    var level = 6;
+    var size  = GeoHex.calcHexSize(level);
+    var unitX = 6 * size;
+    var unitY = 6 * size * GeoHex.K;
+    var stepX = unitX / 2;
+    var stepY = unitY / 2;
+
+    var bounds = map.getBounds();
+    var swM = GeoHex.loc2xy(bounds.getWest(),  bounds.getSouth());
+    var neM = GeoHex.loc2xy(bounds.getEast(),  bounds.getNorth());
+
+    var xSteps = Math.ceil((neM.x - swM.x + 2 * unitX) / stepX);
+    var ySteps = Math.ceil((neM.y - swM.y + 2 * unitY) / stepY);
+    if (xSteps * ySteps > 8000) {
+      showStatus('出現マスク: ズームを拡大してください');
+      return;
+    }
+
+    var seen = {};
+    for (var mx = swM.x - unitX; mx <= neM.x + unitX; mx += stepX) {
+      for (var my = swM.y - unitY; my <= neM.y + unitY; my += stepY) {
+        var loc = GeoHex.xy2loc(mx, my);
+        var xy  = GeoHex.getXYByLocation(loc.lat, loc.lon, level);
+        var key = xy.x + '_' + xy.y;
+        if (seen[key]) continue;
+        seen[key] = true;
+        var ctr  = GeoHex.getCellCenter(xy.x, xy.y, level);
+        var code = GeoHex.getCode(xy.x, xy.y, ctr.lon, level);
+        var last = code.charAt(code.length - 1);
+        var coords = GeoHex.getHexCoords(ctr.lat, ctr.lon, level);
+        var style = (last === '2' || last === '6') ? APPEAR_BORDER_STYLE : APPEAR_FILL_STYLE;
+        L.polygon(coords, style).addTo(appearLayer);
+      }
+    }
+  }
+
+  var appearDebounce = null;
+  map.on('moveend zoomend', function() {
+    clearTimeout(appearDebounce);
+    appearDebounce = setTimeout(renderAppearMask, 150);
+  });
+
+  document.getElementById('hex6Appear').addEventListener('change', function() {
+    if (this.checked) {
+      appearLayer.addTo(map);
+      renderAppearMask();
+    } else {
+      appearLayer.clearLayers();
+      map.removeLayer(appearLayer);
+    }
   });
 
   // ---- バス停プロット ----
