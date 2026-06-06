@@ -137,7 +137,9 @@ assert_eval_eq "クリック前は円がない" "0" "circles.length"
 
 ab eval "spiritMarkers[0].fire('click')" &>/dev/null
 ab wait 500 &>/dev/null
-assert_eval_eq "クリックで 750m + 3km の円が2本描画される" "2" "circles.length"
+assert_eval_eq "クリックで 750m + 3.8km の円が2本描画される" "2" "circles.length"
+assert_eval_eq "内側の円の半径が 750m" "750" "circles[0].getRadius()"
+assert_eval_eq "外側の円の半径が 3800m" "3800" "circles[1].getRadius()"
 ab screenshot "$SCREENSHOTS_DIR/03_circles.png" &>/dev/null
 
 # -------- [5] クリアボタン --------
