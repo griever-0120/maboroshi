@@ -47,7 +47,7 @@ def main():
         reader = csv.reader(f)
         next(reader)
         for row in reader:
-            count_sum += int(row[4])
+            count_sum += sum(int(v) for v in row[4:8])
     if count_sum != total:
         print(f"NG: all.csv の出現回数合計 {count_sum} 件 != 元データ {total} 件", file=sys.stderr)
         ok = False

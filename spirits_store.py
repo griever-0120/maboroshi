@@ -15,7 +15,8 @@ import geohex
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spirits-data")
 DAILY_HEADER = ["日付", "名前", "緯度", "経度"]
-ALL_HEADER = ["アドレス", "名前", "緯度", "経度", "出現回数", "最新出現日"]
+ELEMENT_NAMES = ["炎の精霊", "水の精霊", "風の精霊", "大地の精霊"]
+ALL_HEADER = ["アドレス", "緯度", "経度", "最新の出現日", "炎", "水", "風", "大地"]
 GEOHEX_LEVEL = 6
 
 
@@ -69,11 +70,12 @@ def list_dates():
 def rebuild_all():
     """全日別CSVから all.csv と dates.json を再生成する。
 
-    集計単位は (GeoHex Lv6 アドレス, 名前)。緯度経度はセル中心。
+    集計単位は GeoHex Lv6 アドレス(1セル1行)。緯度経度はセル中心。
+    炎・水・風・大地の各列に精霊ごとの出現回数を持つ。
     戻り値: (全レコード数, all.csv の行数)
     """
     dates = list_dates()
-    agg = {}  # (code, name) -> [center_lat, center_lon, count, latest_date]
+    agg = {}  # code -> [center_lat, center_lon, {名前: 回数}, latest_date]
     total = 0
     for date_str in dates:
         for row in load_daily(date_str):
@@ -85,19 +87,19 @@ def rebuild_all():
                 continue
             total += 1
             code, clat, clon = geohex.encode(lat, lng, GEOHEX_LEVEL)
-            key = (code, row[1])
-            if key in agg:
-                agg[key][2] += 1
-                if row[0] > agg[key][3]:
-                    agg[key][3] = row[0]
-            else:
-                agg[key] = [clat, clon, 1, row[0]]
+            if code not in agg:
+                agg[code] = [clat, clon, {}, row[0]]
+            cell = agg[code]
+            cell[2][row[1]] = cell[2].get(row[1], 0) + 1
+            if row[0] > cell[3]:
+                cell[3] = row[0]
 
     with open(os.path.join(DATA_DIR, "all.csv"), "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(ALL_HEADER)
-        for (code, name), (clat, clon, count, latest) in sorted(agg.items()):
-            writer.writerow([code, name, f"{clat:.6f}", f"{clon:.6f}", count, latest])
+        for code, (clat, clon, counts, latest) in sorted(agg.items()):
+            writer.writerow([code, f"{clat:.6f}", f"{clon:.6f}", latest]
+                            + [counts.get(n, 0) for n in ELEMENT_NAMES])
 
     with open(os.path.join(DATA_DIR, "dates.json"), "w", encoding="utf-8") as f:
         json.dump(list(reversed(dates)), f, ensure_ascii=False, indent=0)

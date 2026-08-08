@@ -132,8 +132,8 @@ else
 fi
 
 assert_eval_eq "「すべて」の行がLv6アドレスを持つ" "1" "allSpiritData[0].code ? 1 : 0"
-POPUP_JS="(function(){var c=spiritMarkers[0].getPopup().getContent();return(c.indexOf(allSpiritData[0].code)>=0&&c.indexOf('出現回数')>=0&&c.indexOf('最新出現日')>=0)?1:0;})()"
-assert_eval_eq "「すべて」のポップアップに アドレス・出現回数・最新出現日 が含まれる" "1" "$POPUP_JS"
+POPUP_JS="(function(){var c=spiritMarkers[0].getPopup().getContent();var d=c.indexOf('最新の出現日');var f=c.indexOf('si-fire');return(c.indexOf(allSpiritData[0].code)>=0&&d>=0&&f>=0&&d<f&&c.indexOf('si-water')>=0&&c.indexOf('si-wind')>=0&&c.indexOf('si-earth')>=0&&c.indexOf('出現回数')<0)?1:0;})()"
+assert_eval_eq "「すべて」のポップアップが アドレス・最新の出現日・4属性アイコン の順で 出現回数 がない" "1" "$POPUP_JS"
 
 # -------- [4] 精霊クリックで円描画 --------
 echo ""

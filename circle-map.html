@@ -645,6 +645,12 @@ var GeoHex = (function () {
     '風の精霊': { cls: 'sm-wind',  icon: 'fa-wind'     },
     '大地の精霊':{ cls: 'sm-earth', icon: 'fa-mountain' },
   };
+  var ELEMENTS = [
+    { name: '炎の精霊',  si: 'si-fire',  icon: 'fa-fire'     },
+    { name: '水の精霊',  si: 'si-water', icon: 'fa-droplet'  },
+    { name: '風の精霊',  si: 'si-wind',  icon: 'fa-wind'     },
+    { name: '大地の精霊', si: 'si-earth', icon: 'fa-mountain' },
+  ];
 
   function showStatus(msg) {
     var el = document.getElementById('status');
@@ -707,16 +713,21 @@ var GeoHex = (function () {
     var data = [];
     for (var i = 1; i < lines.length; i++) {
       var cols = lines[i].split(',');
-      if (cols.length < 6) continue;
+      if (cols.length < 8) continue;
       var code = cols[0].trim();
-      var name = cols[1].trim();
-      var lat  = parseFloat(cols[2]);
-      var lng  = parseFloat(cols[3]);
-      var count = parseInt(cols[4], 10);
-      var latest = cols[5].trim();
+      var lat  = parseFloat(cols[1]);
+      var lng  = parseFloat(cols[2]);
+      var latest = cols[3].trim();
       if (isNaN(lat) || isNaN(lng)) continue;
-      if (!SPIRIT_CONFIG[name]) continue;
-      data.push({ code: code, name: name, lat: lat, lng: lng, count: count, latest: latest });
+      var counts = {};
+      var name = null;
+      var best = -1;
+      ELEMENTS.forEach(function(el, idx) {
+        var c = parseInt(cols[4 + idx], 10) || 0;
+        counts[el.name] = c;
+        if (c > best) { best = c; name = el.name; }
+      });
+      data.push({ code: code, name: name, lat: lat, lng: lng, counts: counts, latest: latest });
     }
     return data;
   }
@@ -732,11 +743,19 @@ var GeoHex = (function () {
         iconAnchor: [15, 15],
         popupAnchor: [0, -16]
       });
-      var body = row.code
-        ? row.code + '<br>出現回数: ' + row.count + ' 回<br>最新出現日: ' + row.latest
-        : row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6);
+      var title, body;
+      if (row.code) {
+        var countsHtml = ELEMENTS.map(function(el) {
+          return '<span style="display:inline-flex;align-items:center;gap:3px;margin:3px 0;"><span class="si ' + el.si + '"><i class="fa-solid ' + el.icon + '"></i></span>' + row.counts[el.name] + '</span>';
+        }).join('&ensp;');
+        title = row.code;
+        body = '最新の出現日: ' + row.latest + '<br>' + countsHtml;
+      } else {
+        title = row.name;
+        body = row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6);
+      }
       var m = L.marker([row.lat, row.lng], { icon: icon })
-        .bindPopup('<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + row.lat + ',' + row.lng + '" target="_blank" rel="noopener" style="float:right;margin-left:8px;margin-right:18px;line-height:1;" title="Googleマップでルート検索"><img src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=32" width="18" height="18" style="vertical-align:middle;border-radius:4px;"></a><b>' + row.name + '</b><br>' + body + '</div>')
+        .bindPopup('<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + row.lat + ',' + row.lng + '" target="_blank" rel="noopener" style="float:right;margin-left:8px;margin-right:18px;line-height:1;" title="Googleマップでルート検索"><img src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=32" width="18" height="18" style="vertical-align:middle;border-radius:4px;"></a><b>' + title + '</b><br>' + body + '</div>')
         .addTo(map);
       (function(lat, lng, marker) {
         marker.on('click', function() {
