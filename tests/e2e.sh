@@ -98,7 +98,8 @@ ab screenshot "$SCREENSHOTS_DIR/01_page_load.png" &>/dev/null
 # -------- [2] 精霊データロード --------
 echo ""
 printf "${BOLD}[2] 精霊データロード${NC}\n"
-assert_eval_gt "spirits.csv が読み込まれる" 0 "allSpiritData.length"
+assert_eval_gt "日付リスト(dates.json)が読み込まれる" 1 "document.getElementById('dateFilter').options.length"
+assert_eval_gt "精霊データが読み込まれる" 0 "allSpiritData.length"
 assert_eval_gt "精霊マーカーがプロットされる" 0 "spiritMarkers.length"
 ab screenshot "$SCREENSHOTS_DIR/02_spirits.png" &>/dev/null
 
@@ -120,15 +121,19 @@ ab wait 500 &>/dev/null
 count_all=$(ab eval "spiritMarkers.length" 2>&1)
 
 if [[ "$count_all" -gt "$count_apr13" ]] 2>/dev/null; then
-  pass "日付フィルタで件数が絞り込まれる (all:${count_all} > 2026/04/13:${count_apr13})"
+  pass "「すべて」(all.csv)は日別より件数が多い (all:${count_all} > 2026/04/13:${count_apr13})"
 else
-  fail "日付フィルタが機能していない (all:${count_all}, 2026/04/13:${count_apr13})"
+  fail "「すべて」の件数が不正 (all:${count_all}, 2026/04/13:${count_apr13})"
 fi
 if [[ "$count_apr13" -gt 0 && "$count_apr12" -gt 0 ]] 2>/dev/null; then
-  pass "各日付で精霊が存在する (2026/04/13:${count_apr13}件, 2026/04/12:${count_apr12}件)"
+  pass "日別CSVが読み込まれる (2026/04/13:${count_apr13}件, 2026/04/12:${count_apr12}件)"
 else
-  fail "日付別データが存在しない (2026/04/13:${count_apr13}, 2026/04/12:${count_apr12})"
+  fail "日別CSVが読み込まれない (2026/04/13:${count_apr13}, 2026/04/12:${count_apr12})"
 fi
+
+assert_eval_eq "「すべて」の行がLv6アドレスを持つ" "1" "allSpiritData[0].code ? 1 : 0"
+POPUP_JS="(function(){var c=spiritMarkers[0].getPopup().getContent();return(c.indexOf(allSpiritData[0].code)>=0&&c.indexOf('出現回数')>=0&&c.indexOf('最新出現日')>=0)?1:0;})()"
+assert_eval_eq "「すべて」のポップアップに アドレス・出現回数・最新出現日 が含まれる" "1" "$POPUP_JS"
 
 # -------- [4] 精霊クリックで円描画 --------
 echo ""

@@ -1,0 +1,1 @@
+- 2026/08/08 精霊データを日別CSV(spirits-data/YYYYMM/YYYYMMDD.csv)+all.csv集計に移行。fetch_spirits.py/circle-map.html/E2E改修、spirits.csv削除

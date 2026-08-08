@@ -682,6 +682,8 @@ var GeoHex = (function () {
 
   // ---- 精霊プロット ----
   var allSpiritData = [];
+  var spiritCache = {};
+  var SPIRITS_BASE = 'spirits-data/';
 
   function parseCSV(text) {
     var lines = text.split(/\r?\n/);
@@ -700,6 +702,25 @@ var GeoHex = (function () {
     return data;
   }
 
+  function parseAllCSV(text) {
+    var lines = text.split(/\r?\n/);
+    var data = [];
+    for (var i = 1; i < lines.length; i++) {
+      var cols = lines[i].split(',');
+      if (cols.length < 6) continue;
+      var code = cols[0].trim();
+      var name = cols[1].trim();
+      var lat  = parseFloat(cols[2]);
+      var lng  = parseFloat(cols[3]);
+      var count = parseInt(cols[4], 10);
+      var latest = cols[5].trim();
+      if (isNaN(lat) || isNaN(lng)) continue;
+      if (!SPIRIT_CONFIG[name]) continue;
+      data.push({ code: code, name: name, lat: lat, lng: lng, count: count, latest: latest });
+    }
+    return data;
+  }
+
   function plotData(data) {
     clearSpirits();
     data.forEach(function(row) {
@@ -711,8 +732,11 @@ var GeoHex = (function () {
         iconAnchor: [15, 15],
         popupAnchor: [0, -16]
       });
+      var body = row.code
+        ? row.code + '<br>出現回数: ' + row.count + ' 回<br>最新出現日: ' + row.latest
+        : row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6);
       var m = L.marker([row.lat, row.lng], { icon: icon })
-        .bindPopup('<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + row.lat + ',' + row.lng + '" target="_blank" rel="noopener" style="float:right;margin-left:8px;margin-right:18px;line-height:1;" title="Googleマップでルート検索"><img src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=32" width="18" height="18" style="vertical-align:middle;border-radius:4px;"></a><b>' + row.name + '</b><br>' + row.date + '<br>' + row.lat.toFixed(6) + ', ' + row.lng.toFixed(6) + '</div>')
+        .bindPopup('<div><a href="https://www.google.com/maps/dir/?api=1&destination=' + row.lat + ',' + row.lng + '" target="_blank" rel="noopener" style="float:right;margin-left:8px;margin-right:18px;line-height:1;" title="Googleマップでルート検索"><img src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=32" width="18" height="18" style="vertical-align:middle;border-radius:4px;"></a><b>' + row.name + '</b><br>' + body + '</div>')
         .addTo(map);
       (function(lat, lng, marker) {
         marker.on('click', function() {
@@ -727,11 +751,7 @@ var GeoHex = (function () {
     showStatus(spiritMarkers.length + ' 件の精霊をプロットしました');
   }
 
-  function buildDateSelector(data) {
-    var dates = [];
-    data.forEach(function(row) { if (dates.indexOf(row.date) === -1) dates.push(row.date); });
-    dates.sort(function(a, b) { return b.localeCompare(a); });
-
+  function buildDateSelector(dates) {
     var sel = document.getElementById('dateFilter');
     sel.innerHTML = '';
     var optAll = document.createElement('option');
@@ -750,34 +770,48 @@ var GeoHex = (function () {
     var dd = String(today.getDate()).padStart(2, '0');
     var todayStr = today.getFullYear() + '/' + mm + '/' + dd;
     var found = dates.some(function(d) { return d === todayStr; });
-    if (found) {
-      sel.value = todayStr;
-    } else {
-      var todayHyphen = today.getFullYear() + '-' + mm + '-' + dd;
-      found = dates.some(function(d) { return d === todayHyphen; });
-      sel.value = found ? todayHyphen : 'all';
-    }
+    sel.value = found ? todayStr : 'all';
+  }
+
+  function dailyCSVPath(dateStr) {
+    var ymd = dateStr.replace(/\//g, '');
+    return SPIRITS_BASE + ymd.substring(0, 6) + '/' + ymd + '.csv';
   }
 
   function onDateChange() {
-    var sel = document.getElementById('dateFilter');
-    var val = sel.value;
-    if (val === 'all') {
+    var val = document.getElementById('dateFilter').value;
+    if (spiritCache[val]) {
+      allSpiritData = spiritCache[val];
       plotData(allSpiritData);
-    } else {
-      plotData(allSpiritData.filter(function(row) { return row.date === val; }));
+      return;
     }
-  }
-
-  function fetchCSV() {
-    fetch('spirits.csv')
+    var url = (val === 'all') ? SPIRITS_BASE + 'all.csv' : dailyCSVPath(val);
+    fetch(url)
       .then(function(res) {
-        if (!res.ok) throw new Error('spirits.csv が見つかりません');
+        if (!res.ok) throw new Error((val === 'all' ? 'all.csv' : val) + ' のデータがありません');
         return res.text();
       })
       .then(function(text) {
-        allSpiritData = parseCSV(text);
-        buildDateSelector(allSpiritData);
+        var data = (val === 'all') ? parseAllCSV(text) : parseCSV(text);
+        spiritCache[val] = data;
+        allSpiritData = data;
+        plotData(data);
+      })
+      .catch(function(err) {
+        clearSpirits();
+        allSpiritData = [];
+        showStatus('⚠ ' + err.message);
+      });
+  }
+
+  function fetchCSV() {
+    fetch(SPIRITS_BASE + 'dates.json')
+      .then(function(res) {
+        if (!res.ok) throw new Error('dates.json が見つかりません');
+        return res.json();
+      })
+      .then(function(dates) {
+        buildDateSelector(dates);
         onDateChange();
       })
       .catch(function(err) { showStatus('⚠ ' + err.message); });
